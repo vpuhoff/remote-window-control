@@ -1,0 +1,22 @@
+{
+  "name": "share-app-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [
+    "pwa",
+    "webrtc",
+    "remote-control"
+  ],
+  "author": "",
+  "license": "MIT",
+  "description": "Mobile PWA client for remote window control over Tailscale.",
+  "devDependencies": {
+    "vite": "^5.4.21"
+  }
+}

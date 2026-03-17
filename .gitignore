@@ -1,0 +1,22 @@
+.DS_Store
+Thumbs.db
+
+# Tailscale certificates and keys
+*.crt
+*.key
+
+# .NET build outputs
+bin/
+obj/
+
+# Go build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.out
+
+# Debug capture artifacts
+*.pdb
