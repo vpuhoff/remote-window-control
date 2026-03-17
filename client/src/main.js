@@ -35,8 +35,10 @@ async function main() {
     });
 
     attachGestureControls(videoElement, remote.sendControl, setStatus);
-    attachKeyboardBridge(keyboardButton, hiddenInput, remote.sendControl);
-    attachViewportSync(remote.sendControl);
+    const keyboard = attachKeyboardBridge(keyboardButton, hiddenInput, remote.sendControl, setStatus);
+    attachViewportSync(remote.sendControl, {
+      isSuspended: () => keyboard.isActive(),
+    });
     setStatus("Управление готово");
   } catch (error) {
     clearToken();

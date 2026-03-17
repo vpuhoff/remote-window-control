@@ -23,6 +23,8 @@ public sealed class WgcCaptureService : IDisposable
     private readonly object _frameLock = new();
     private readonly AutoResetEvent _frameEvent = new(false);
     private byte[]? _frameBuffer;
+    private int _captureWidth;
+    private int _captureHeight;
     private int _frameWidth;
     private int _frameHeight;
     private int _frameStride;
@@ -39,6 +41,8 @@ public sealed class WgcCaptureService : IDisposable
         WinRtInitialization.EnsureInitialized();
         InitializeDevices();
         _captureItem = CreateItemForWindow(hwnd);
+        _captureWidth = _captureItem.Size.Width;
+        _captureHeight = _captureItem.Size.Height;
         _framePool = Direct3D11CaptureFramePool.CreateFreeThreaded(
             _winrtDevice!,
             DirectXPixelFormat.B8G8R8A8UIntNormalized,
@@ -197,14 +201,16 @@ public sealed class WgcCaptureService : IDisposable
                 return;
             }
 
-            if (_captureItem is not null &&
-                (frame.ContentSize.Width != _captureItem.Size.Width || frame.ContentSize.Height != _captureItem.Size.Height))
+            if (frame.ContentSize.Width != _captureWidth || frame.ContentSize.Height != _captureHeight)
             {
+                _captureWidth = frame.ContentSize.Width;
+                _captureHeight = frame.ContentSize.Height;
                 sender.Recreate(
                     _winrtDevice!,
                     DirectXPixelFormat.B8G8R8A8UIntNormalized,
                     2,
                     frame.ContentSize);
+                return;
             }
 
             var surfaceInterop = frame.Surface.As<IDirect3DDxgiInterfaceAccess>();
@@ -218,7 +224,20 @@ public sealed class WgcCaptureService : IDisposable
             _d3dDevice.ImmediateContext.Map(_stagingTexture!, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None, out var mapped).CheckError();
             try
             {
-                StoreFrame(mapped.DataPointer, frame.ContentSize.Width, frame.ContentSize.Height, mapped.RowPitch);
+                var copyWidth = Math.Min(frame.ContentSize.Width, (int)gpuTexture.Description.Width);
+                var copyHeight = Math.Min(frame.ContentSize.Height, (int)gpuTexture.Description.Height);
+                var maxWidthFromPitch = mapped.RowPitch / 4;
+                if (copyWidth > maxWidthFromPitch)
+                {
+                    copyWidth = maxWidthFromPitch;
+                }
+
+                if (copyWidth <= 0 || copyHeight <= 0)
+                {
+                    return;
+                }
+
+                StoreFrame(mapped.DataPointer, copyWidth, copyHeight, mapped.RowPitch);
             }
             finally
             {
@@ -265,7 +284,18 @@ public sealed class WgcCaptureService : IDisposable
 
     private void StoreFrame(IntPtr pixels, int width, int height, int sourcePitch)
     {
-        var contiguousStride = width * 4;
+        if (sourcePitch <= 0 || width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var safeWidth = Math.Min(width, sourcePitch / 4);
+        if (safeWidth <= 0)
+        {
+            return;
+        }
+
+        var contiguousStride = safeWidth * 4;
         var requiredSize = contiguousStride * height;
 
         lock (_frameLock)
@@ -289,7 +319,7 @@ public sealed class WgcCaptureService : IDisposable
                     contiguousStride);
             }
 
-            _frameWidth = width;
+            _frameWidth = safeWidth;
             _frameHeight = height;
             _frameStride = contiguousStride;
             _frameBytesWritten = requiredSize;

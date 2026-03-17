@@ -11,6 +11,7 @@ const (
 	inputKeyboard = 1
 
 	keyeventfKeyUp   = 0x0002
+	keyeventfScancode = 0x0008
 	keyeventfUnicode = 0x0004
 
 	mouseeventfMove        = 0x0001
@@ -24,6 +25,21 @@ const (
 
 	smCxScreen = 0
 	smCyScreen = 1
+
+	vkBack   = 0x08
+	vkTab    = 0x09
+	vkReturn = 0x0D
+	vkEscape = 0x1B
+	vkSpace  = 0x20
+	vkPrior  = 0x21
+	vkNext   = 0x22
+	vkEnd    = 0x23
+	vkHome   = 0x24
+	vkLeft   = 0x25
+	vkUp     = 0x26
+	vkRight  = 0x27
+	vkDown   = 0x28
+	vkDelete = 0x2E
 )
 
 var (
@@ -138,20 +154,31 @@ func (s *SendInputInjector) ResizeViewport(command Command) error {
 
 func (s *SendInputInjector) KeyDown(command Command) error {
 	focusTargetWindow(s.targets)
-	return s.Text(command.Key)
+	if vk, ok := specialKeyToVK(command.Key); ok {
+		return sendVirtualKeyboard(vk, 0)
+	}
+	return nil
 }
 
-func (s *SendInputInjector) KeyUp(Command) error {
+func (s *SendInputInjector) KeyUp(command Command) error {
+	if vk, ok := specialKeyToVK(command.Key); ok {
+		return sendVirtualKeyboard(vk, keyeventfKeyUp)
+	}
 	return nil
 }
 
 func (s *SendInputInjector) Text(text string) error {
 	focusTargetWindow(s.targets)
+	if s.targets != nil {
+		if handle, ok := s.targets.CurrentHandle(); ok && handle != 0 {
+			return postText(s.targets, text)
+		}
+	}
 	for _, unit := range utf16.Encode([]rune(text)) {
-		if err := sendKeyboard(unit, 0); err != nil {
+		if err := sendUnicodeKeyboard(unit, 0); err != nil {
 			return err
 		}
-		if err := sendKeyboard(unit, keyeventfUnicode|keyeventfKeyUp); err != nil {
+		if err := sendUnicodeKeyboard(unit, keyeventfKeyUp); err != nil {
 			return err
 		}
 	}
@@ -180,12 +207,33 @@ func sendMouse(flags uint32, data uint32) error {
 	return nil
 }
 
-func sendKeyboard(scan uint16, flags uint32) error {
+func sendUnicodeKeyboard(scan uint16, flags uint32) error {
 	packet := inputPacket{
 		Type: inputKeyboard,
 		Ki: keyboardInput{
 			WScan:   scan,
-			DwFlags: flags,
+			DwFlags: keyeventfUnicode | flags,
+		},
+	}
+
+	result, _, err := procSendInput.Call(
+		1,
+		uintptr(unsafe.Pointer(&packet)),
+		unsafe.Sizeof(packet),
+	)
+	if result == 0 {
+		return err
+	}
+
+	return nil
+}
+
+func sendVirtualKeyboard(vk uint16, flags uint32) error {
+	packet := inputPacket{
+		Type: inputKeyboard,
+		Ki: keyboardInput{
+			WVk:     vk,
+			DwFlags: flags &^ keyeventfUnicode &^ keyeventfScancode,
 		},
 	}
 
@@ -240,4 +288,39 @@ func clampUnit(value float64) float64 {
 		return 1
 	}
 	return value
+}
+
+func specialKeyToVK(key string) (uint16, bool) {
+	switch key {
+	case "Backspace":
+		return vkBack, true
+	case "Tab":
+		return vkTab, true
+	case "Enter":
+		return vkReturn, true
+	case "Escape":
+		return vkEscape, true
+	case "Delete":
+		return vkDelete, true
+	case "ArrowLeft":
+		return vkLeft, true
+	case "ArrowUp":
+		return vkUp, true
+	case "ArrowRight":
+		return vkRight, true
+	case "ArrowDown":
+		return vkDown, true
+	case "Home":
+		return vkHome, true
+	case "End":
+		return vkEnd, true
+	case "PageUp":
+		return vkPrior, true
+	case "PageDown":
+		return vkNext, true
+	case " ":
+		return vkSpace, true
+	default:
+		return 0, false
+	}
 }

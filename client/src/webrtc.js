@@ -35,6 +35,7 @@ export async function createRemoteConnection({ token, videoElement, onStatus, on
   const signaling = new WebSocket(makeSignalingUrl(token));
   const peer = new RTCPeerConnection();
   let placeholderActivated = false;
+  const pendingControlMessages = [];
 
   const attachPlaceholder = () => {
     if (placeholderActivated || videoElement.srcObject) {
@@ -46,7 +47,26 @@ export async function createRemoteConnection({ token, videoElement, onStatus, on
     onStatus("Сигналинг активен, ожидается медиатрек");
   };
 
+  const flushPendingControls = () => {
+    while (pendingControlMessages.length > 0) {
+      const serialized = pendingControlMessages.shift();
+      if (inputChannel.readyState === "open") {
+        inputChannel.send(serialized);
+        continue;
+      }
+
+      if (signaling.readyState === WebSocket.OPEN) {
+        signaling.send(serialized);
+        continue;
+      }
+
+      pendingControlMessages.unshift(serialized);
+      return;
+    }
+  };
+
   const inputChannel = peer.createDataChannel("control");
+  inputChannel.addEventListener("open", flushPendingControls);
   inputChannel.addEventListener("message", (event) => {
     try {
       onInputMessage?.(JSON.parse(event.data));
@@ -79,6 +99,7 @@ export async function createRemoteConnection({ token, videoElement, onStatus, on
 
   signaling.addEventListener("open", async () => {
     onStatus("WebSocket подключен");
+    flushPendingControls();
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
     signaling.send(
@@ -128,7 +149,10 @@ export async function createRemoteConnection({ token, videoElement, onStatus, on
 
       if (signaling.readyState === WebSocket.OPEN) {
         signaling.send(serialized);
+        return;
       }
+
+      pendingControlMessages.push(serialized);
     },
   };
 }

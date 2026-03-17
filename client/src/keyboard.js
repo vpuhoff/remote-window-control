@@ -1,22 +1,102 @@
-export function attachKeyboardBridge(buttonElement, inputElement, sendControl) {
-  buttonElement.addEventListener("click", () => {
-    inputElement.focus();
-  });
+export function attachKeyboardBridge(buttonElement, inputElement, sendControl, onStatus) {
+  let keyboardActive = false;
+  let allowBlur = false;
+  let previousValue = "";
 
-  inputElement.addEventListener("input", (event) => {
-    const value = event.target.value;
-    if (!value) {
-      return;
-    }
+  const syncUi = () => {
+    buttonElement.classList.toggle("active", keyboardActive);
+    inputElement.classList.toggle("active", keyboardActive);
+  };
 
-    for (const char of value) {
+  const sendKeyPress = (key) => {
+    sendControl({
+      type: "input.keyDown",
+      key,
+    });
+    sendControl({
+      type: "input.keyUp",
+      key,
+    });
+  };
+
+  const sendText = (text) => {
+    for (const char of text) {
+      if (char === "\n") {
+        sendKeyPress("Enter");
+        continue;
+      }
+
       sendControl({
         type: "input.text",
         text: char,
       });
     }
+  };
 
-    event.target.value = "";
+  const focusInput = () => {
+    inputElement.focus();
+    const length = inputElement.value.length;
+    inputElement.setSelectionRange(length, length);
+  };
+
+  const openKeyboard = () => {
+    keyboardActive = true;
+    previousValue = "";
+    inputElement.value = "";
+    syncUi();
+    window.setTimeout(focusInput, 0);
+    onStatus?.("Клавиатура активна");
+  };
+
+  const closeKeyboard = () => {
+    keyboardActive = false;
+    allowBlur = true;
+    syncUi();
+    inputElement.blur();
+    inputElement.value = "";
+    previousValue = "";
+    onStatus?.("Клавиатура скрыта");
+  };
+
+  buttonElement.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (keyboardActive) {
+      closeKeyboard();
+      return;
+    }
+    openKeyboard();
+  });
+
+  inputElement.addEventListener("beforeinput", (event) => {
+    if (!keyboardActive) {
+      return;
+    }
+
+    if (event.inputType === "deleteContentBackward" && previousValue.length > 0) {
+      sendKeyPress("Backspace");
+    }
+  });
+
+  inputElement.addEventListener("input", (event) => {
+    const value = event.target.value;
+    if (!keyboardActive) {
+      previousValue = value;
+      return;
+    }
+
+    if (value.length > previousValue.length && value.startsWith(previousValue)) {
+      sendText(value.slice(previousValue.length));
+    } else if (value.length < previousValue.length) {
+      const removed = previousValue.length - value.length;
+      for (let index = 0; index < removed; index += 1) {
+        sendKeyPress("Backspace");
+      }
+    } else if (value !== previousValue) {
+      sendText(value);
+    }
+
+    previousValue = value;
   });
 
   inputElement.addEventListener("keydown", (event) => {
@@ -42,4 +122,39 @@ export function attachKeyboardBridge(buttonElement, inputElement, sendControl) {
       metaKey: event.metaKey,
     });
   });
+
+  inputElement.addEventListener("blur", () => {
+    if (!keyboardActive) {
+      syncUi();
+      return;
+    }
+
+    if (allowBlur) {
+      allowBlur = false;
+      syncUi();
+      return;
+    }
+
+    window.setTimeout(() => {
+      if (keyboardActive) {
+        focusInput();
+      }
+    }, 0);
+  });
+
+  inputElement.addEventListener("touchstart", (event) => {
+    event.stopPropagation();
+  }, { passive: true });
+
+  inputElement.addEventListener("click", (event) => {
+    event.stopPropagation();
+  });
+
+  syncUi();
+
+  return {
+    isActive() {
+      return keyboardActive;
+    },
+  };
 }

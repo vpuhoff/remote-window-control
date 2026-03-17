@@ -4,10 +4,12 @@ import (
 	"errors"
 	"math"
 	"syscall"
+	"unicode/utf16"
 	"unsafe"
 )
 
 const (
+	wmChar                   = 0x0102
 	wmMouseWheel             = 0x020A
 	monitorDefaultToNearest = 0x00000002
 )
@@ -43,6 +45,7 @@ var (
 	procClientToScreen      = user32.NewProc("ClientToScreen")
 	procMonitorFromWindow   = user32.NewProc("MonitorFromWindow")
 	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
+	procSendMessageW        = user32.NewProc("SendMessageW")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 	procPostMessageW        = user32.NewProc("PostMessageW")
 	procMoveWindow          = user32.NewProc("MoveWindow")
@@ -104,6 +107,31 @@ func postMouseWheel(provider TargetProvider, delta int32) error {
 	return nil
 }
 
+func postText(provider TargetProvider, text string) error {
+	if provider == nil {
+		return nil
+	}
+
+	handle, ok := provider.CurrentHandle()
+	if !ok || handle == 0 {
+		return nil
+	}
+
+	for _, unit := range utf16.Encode([]rune(text)) {
+		_, _, err := procSendMessageW.Call(
+			uintptr(handle),
+			uintptr(wmChar),
+			uintptr(unit),
+			0,
+		)
+		if err != syscall.Errno(0) {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func resizeTargetWindow(provider TargetProvider, desiredClientWidth, desiredClientHeight int) error {
 	if provider == nil {
 		return ErrTargetWindowNotSelected
@@ -133,6 +161,9 @@ func resizeTargetWindow(provider TargetProvider, desiredClientWidth, desiredClie
 		maxClientHeight := int(workArea.Bottom-workArea.Top) - int(frameHeight)
 		desiredClientWidth, desiredClientHeight = fitClientSize(desiredClientWidth, desiredClientHeight, maxClientWidth, maxClientHeight)
 	}
+
+	desiredClientWidth = makeEvenDimension(desiredClientWidth)
+	desiredClientHeight = makeEvenDimension(desiredClientHeight)
 
 	newWidth := clampDimension(desiredClientWidth + int(frameWidth))
 	newHeight := clampDimension(desiredClientHeight + int(frameHeight))
@@ -243,7 +274,7 @@ func fitClientSize(desiredWidth, desiredHeight, maxWidth, maxHeight int) (int, i
 	width := int(math.Round(float64(desiredWidth) * scale))
 	height := int(math.Round(float64(desiredHeight) * scale))
 
-	return clampDimension(width), clampDimension(height)
+	return makeEvenDimension(clampDimension(width)), makeEvenDimension(clampDimension(height))
 }
 
 func clampInt32(value, minValue, maxValue int32) int32 {
@@ -255,6 +286,17 @@ func clampInt32(value, minValue, maxValue int32) int32 {
 	}
 	if value > maxValue {
 		return maxValue
+	}
+	return value
+}
+
+func makeEvenDimension(value int) int {
+	value = clampDimension(value)
+	if value%2 != 0 {
+		value--
+	}
+	if value < 200 {
+		return 200
 	}
 	return value
 }

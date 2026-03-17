@@ -20,7 +20,15 @@
       <button id="keyboard-button" type="button" aria-label="Открыть клавиатуру">
         ⌨
       </button>
-      <input id="hidden-text-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" />
+      <textarea
+        id="hidden-text-input"
+        inputmode="text"
+        enterkeyhint="done"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck="false"
+        placeholder="Печатайте здесь"
+      ></textarea>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

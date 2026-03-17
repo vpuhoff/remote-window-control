@@ -16,7 +16,7 @@ function getVideoContentRect(element) {
 
   return {
     left: rect.left + (rect.width - contentWidth) / 2,
-    top: rect.top + (rect.height - contentHeight) / 2,
+    top: rect.top,
     width: contentWidth,
     height: contentHeight,
   };
