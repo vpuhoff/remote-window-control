@@ -224,6 +224,9 @@ func (s *Server) staticHandler() http.Handler {
 		for _, root := range s.staticRoots {
 			candidate := filepath.Join(root, cleanPath)
 			if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+				if cleanPath == "manifest.webmanifest" {
+					writer.Header().Set("Content-Type", "application/manifest+json")
+				}
 				http.ServeFile(writer, request, candidate)
 				return
 			}

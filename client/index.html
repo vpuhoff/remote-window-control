@@ -13,6 +13,12 @@
   </head>
   <body>
     <div id="app">
+      <div id="select-screen">
+        <h1>Выберите приложение</h1>
+        <p id="select-status">Загрузка списка окон...</p>
+        <div id="window-list"></div>
+      </div>
+      <div id="remote-screen" hidden>
       <div id="top-bar">
         <div id="status-pill">Подключение...</div>
         <div id="bitrate-pill" hidden aria-label="Битрейт видео"></div>
@@ -59,6 +65,7 @@
             <path d="M4 7v6a3 3 0 0 0 3 3h13m0 0-4-4m4 4-4 4"/>
           </svg>
         </button>
+      </div>
       </div>
     </div>
     <script type="module" src="/src/main.js"></script>

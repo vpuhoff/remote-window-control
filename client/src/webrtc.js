@@ -64,7 +64,9 @@ function createPlaceholderStream() {
 }
 
 export async function createRemoteConnection({ token, videoElement, onStatus, onInputMessage, onBitrate }) {
-  const signaling = new WebSocket(makeSignalingUrl(token));
+  const wsUrl = makeSignalingUrl(token);
+  console.log("WebSocket подключается к:", wsUrl.replace(/token=[^&]+/, "token=***"));
+  const signaling = new WebSocket(wsUrl);
   const peer = new RTCPeerConnection();
   let placeholderActivated = false;
   const pendingControlMessages = [];
@@ -132,7 +134,14 @@ export async function createRemoteConnection({ token, videoElement, onStatus, on
     );
   };
 
+  const connectTimeout = window.setTimeout(() => {
+    if (signaling.readyState === WebSocket.CONNECTING) {
+      onStatus("Таймаут подключения — проверьте Tailscale и доступность хоста");
+    }
+  }, 15000);
+
   signaling.addEventListener("open", async () => {
+    window.clearTimeout(connectTimeout);
     onStatus("WebSocket подключен");
     flushPendingControls();
     const offer = await peer.createOffer();
@@ -166,8 +175,13 @@ export async function createRemoteConnection({ token, videoElement, onStatus, on
     }
   });
 
-  signaling.addEventListener("close", () => {
-    onStatus("Соединение закрыто");
+  signaling.addEventListener("error", () => {
+    onStatus("Ошибка WebSocket — проверьте сеть и Tailscale");
+  });
+
+  signaling.addEventListener("close", (event) => {
+    const msg = event.code !== 1000 ? `Соединение закрыто (код ${event.code})` : "Соединение закрыто";
+    onStatus(msg);
     attachPlaceholder();
   });
 

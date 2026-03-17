@@ -36,6 +36,91 @@ body {
   min-height: 0;
 }
 
+#select-screen {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+
+#select-screen[hidden] {
+  display: none !important;
+}
+
+#select-screen h1 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+#select-status {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin-bottom: 16px;
+  min-height: 1.2em;
+}
+
+#window-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.window-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 12px 14px;
+  background: rgba(30, 41, 59, 0.96);
+  border: 1px solid rgba(51, 65, 85, 0.8);
+  border-radius: 10px;
+  color: #e2e8f0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.window-card:hover,
+.window-card:focus {
+  background: rgba(51, 65, 85, 0.96);
+  border-color: rgba(56, 189, 248, 0.5);
+  outline: none;
+}
+
+.window-card:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.window-card-title {
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.window-card-sub {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+#remote-screen {
+  grid-column: 1 / -1;
+  grid-row: 1 / -1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+#remote-screen[hidden] {
+  display: none !important;
+}
+
 #video-stage {
   min-height: 0;
   background: #000;
