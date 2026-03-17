@@ -1,4 +1,10 @@
-export function attachKeyboardBridge(buttonElement, inputElement, sendControl, onStatus) {
+export function attachKeyboardBridge(controls, sendControl, onStatus) {
+  const {
+    buttonElement,
+    inputElement,
+    backspaceButton,
+    enterButton,
+  } = controls;
   let keyboardActive = false;
   let allowBlur = false;
   let previousValue = "";
@@ -66,6 +72,20 @@ export function attachKeyboardBridge(buttonElement, inputElement, sendControl, o
       return;
     }
     openKeyboard();
+  });
+
+  backspaceButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    sendKeyPress("Backspace");
+    focusInput();
+  });
+
+  enterButton?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    sendKeyPress("Enter");
+    focusInput();
   });
 
   inputElement.addEventListener("beforeinput", (event) => {
@@ -148,6 +168,13 @@ export function attachKeyboardBridge(buttonElement, inputElement, sendControl, o
 
   inputElement.addEventListener("click", (event) => {
     event.stopPropagation();
+  });
+
+  inputElement.addEventListener("focus", () => {
+    if (!keyboardActive) {
+      keyboardActive = true;
+      syncUi();
+    }
   });
 
   syncUi();

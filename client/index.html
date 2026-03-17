@@ -9,26 +9,35 @@
   </head>
   <body>
     <div id="app">
-      <video
-        id="remote-video"
-        autoplay
-        playsinline
-        muted
-        disablepictureinpicture
-      ></video>
-      <div id="status-pill">Подключение...</div>
-      <button id="keyboard-button" type="button" aria-label="Открыть клавиатуру">
-        ⌨
-      </button>
-      <textarea
-        id="hidden-text-input"
-        inputmode="text"
-        enterkeyhint="done"
-        autocomplete="off"
-        autocapitalize="off"
-        spellcheck="false"
-        placeholder="Печатайте здесь"
-      ></textarea>
+      <div id="top-bar">
+        <div id="status-pill">Подключение...</div>
+        <div id="top-bar-actions">
+          <button id="fullscreen-button" type="button" aria-label="Полный экран">⛶</button>
+          <button id="keyboard-button" type="button" aria-label="Открыть клавиатуру">⌨</button>
+        </div>
+      </div>
+      <div id="video-stage">
+        <video
+          id="remote-video"
+          autoplay
+          playsinline
+          muted
+          disablepictureinpicture
+        ></video>
+      </div>
+      <div id="input-dock">
+        <textarea
+          id="hidden-text-input"
+          inputmode="text"
+          enterkeyhint="done"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="Напишите текст"
+        ></textarea>
+        <button id="backspace-button" type="button" aria-label="Backspace">⌫</button>
+        <button id="enter-button" type="button" aria-label="Enter">↵</button>
+      </div>
     </div>
     <script type="module" src="/src/main.js"></script>
   </body>

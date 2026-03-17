@@ -1,9 +1,14 @@
-function getViewportPayload() {
+function getViewportPayload(targetElement) {
+  const stageRect = targetElement?.getBoundingClientRect();
   const viewport = window.visualViewport;
+
+  const width = Math.round(stageRect?.width ?? viewport?.width ?? window.innerWidth);
+  const height = Math.round(stageRect?.height ?? viewport?.height ?? window.innerHeight);
+
   return {
     type: "viewport.resize",
-    width: Math.round(viewport?.width ?? window.innerWidth),
-    height: Math.round(viewport?.height ?? window.innerHeight),
+    width,
+    height,
     devicePixelRatio: window.devicePixelRatio || 1,
   };
 }
@@ -12,10 +17,11 @@ export function attachViewportSync(sendControl, options = {}) {
   let timerId = null;
   let orientationTimerIds = [];
   const isSuspended = options.isSuspended ?? (() => false);
+  const targetElement = options.targetElement ?? null;
   let lastPayload = null;
 
   const sendViewport = () => {
-    const payload = getViewportPayload();
+    const payload = getViewportPayload(targetElement);
     const keyboardLikeResize =
       isSuspended()
       && lastPayload

@@ -7,12 +7,31 @@ import { attachViewportSync } from "./viewport.js";
 import { createRemoteConnection } from "./webrtc.js";
 
 const videoElement = document.querySelector("#remote-video");
+const videoStageElement = document.querySelector("#video-stage");
 const statusElement = document.querySelector("#status-pill");
+const fullscreenButton = document.querySelector("#fullscreen-button");
 const keyboardButton = document.querySelector("#keyboard-button");
 const hiddenInput = document.querySelector("#hidden-text-input");
+const backspaceButton = document.querySelector("#backspace-button");
+const enterButton = document.querySelector("#enter-button");
 
 function setStatus(message) {
   statusElement.textContent = message;
+}
+
+function attachTopBarControls() {
+  fullscreenButton?.addEventListener("click", async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+        return;
+      }
+
+      await document.documentElement.requestFullscreen();
+    } catch {
+      setStatus("Не удалось переключить полный экран");
+    }
+  });
 }
 
 async function main() {
@@ -35,9 +54,16 @@ async function main() {
     });
 
     attachGestureControls(videoElement, remote.sendControl, setStatus);
-    const keyboard = attachKeyboardBridge(keyboardButton, hiddenInput, remote.sendControl, setStatus);
+    attachTopBarControls();
+    const keyboard = attachKeyboardBridge({
+      buttonElement: keyboardButton,
+      inputElement: hiddenInput,
+      backspaceButton,
+      enterButton,
+    }, remote.sendControl, setStatus);
     attachViewportSync(remote.sendControl, {
       isSuspended: () => keyboard.isActive(),
+      targetElement: videoStageElement,
     });
     setStatus("Управление готово");
   } catch (error) {
