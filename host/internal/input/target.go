@@ -4,11 +4,14 @@ import (
 	"errors"
 	"math"
 	"syscall"
+	"time"
 	"unicode/utf16"
 	"unsafe"
 )
 
 const (
+	wmKeyDown                = 0x0100
+	wmKeyUp                  = 0x0101
 	wmChar                   = 0x0102
 	wmMouseWheel             = 0x020A
 	monitorDefaultToNearest = 0x00000002
@@ -40,15 +43,23 @@ type monitorInfo struct {
 }
 
 var (
-	procGetWindowRect       = user32.NewProc("GetWindowRect")
-	procGetClientRect       = user32.NewProc("GetClientRect")
-	procClientToScreen      = user32.NewProc("ClientToScreen")
-	procMonitorFromWindow   = user32.NewProc("MonitorFromWindow")
-	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
-	procSendMessageW        = user32.NewProc("SendMessageW")
-	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
-	procPostMessageW        = user32.NewProc("PostMessageW")
-	procMoveWindow          = user32.NewProc("MoveWindow")
+	procGetWindowRect         = user32.NewProc("GetWindowRect")
+	procGetClientRect         = user32.NewProc("GetClientRect")
+	procClientToScreen        = user32.NewProc("ClientToScreen")
+	procMonitorFromWindow     = user32.NewProc("MonitorFromWindow")
+	procGetMonitorInfoW       = user32.NewProc("GetMonitorInfoW")
+	procSendMessageW          = user32.NewProc("SendMessageW")
+	procSetForegroundWindow   = user32.NewProc("SetForegroundWindow")
+	procPostMessageW          = user32.NewProc("PostMessageW")
+	procMoveWindow            = user32.NewProc("MoveWindow")
+	procGetWindowThreadProcID = user32.NewProc("GetWindowThreadProcessId")
+	procGetForegroundWindow   = user32.NewProc("GetForegroundWindow")
+	procAttachThreadInput     = user32.NewProc("AttachThreadInput")
+)
+
+var (
+	kernel32                 = syscall.NewLazyDLL("kernel32.dll")
+	procGetCurrentThreadID   = kernel32.NewProc("GetCurrentThreadId")
 )
 
 func currentWindowRect(provider TargetProvider) (rect, bool) {
@@ -80,7 +91,52 @@ func focusTargetWindow(provider TargetProvider) {
 		return
 	}
 
-	_, _, _ = procSetForegroundWindow.Call(uintptr(handle))
+	hTarget := uintptr(handle)
+	fg, _, _ := procGetForegroundWindow.Call()
+	if fg != 0 && fg != hTarget {
+		fgTid, _, _ := procGetWindowThreadProcID.Call(fg, 0)
+		ourTid, _, _ := procGetCurrentThreadID.Call()
+		if fgTid != 0 && ourTid != 0 {
+			procAttachThreadInput.Call(fgTid, ourTid, 1)
+			procSetForegroundWindow.Call(hTarget)
+			procAttachThreadInput.Call(fgTid, ourTid, 0)
+		} else {
+			procSetForegroundWindow.Call(hTarget)
+		}
+		time.Sleep(50 * time.Millisecond)
+	} else {
+		procSetForegroundWindow.Call(hTarget)
+	}
+}
+
+func postKeyToWindow(provider TargetProvider, vk uint16, keyUp bool) error {
+	if provider == nil {
+		return nil
+	}
+
+	handle, ok := provider.CurrentHandle()
+	if !ok || handle == 0 {
+		return nil
+	}
+
+	msg := wmKeyDown
+	lParam := uintptr(1)
+	if keyUp {
+		msg = wmKeyUp
+		lParam = 0xC0000001
+	}
+
+	_, _, err := procPostMessageW.Call(
+		uintptr(handle),
+		uintptr(msg),
+		uintptr(vk),
+		lParam,
+	)
+	if err != syscall.Errno(0) {
+		return err
+	}
+
+	return nil
 }
 
 func postMouseWheel(provider TargetProvider, delta int32) error {

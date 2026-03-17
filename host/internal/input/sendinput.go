@@ -153,8 +153,13 @@ func (s *SendInputInjector) ResizeViewport(command Command) error {
 }
 
 func (s *SendInputInjector) KeyDown(command Command) error {
-	focusTargetWindow(s.targets)
 	if vk, ok := specialKeyToVK(command.Key); ok {
+		if s.targets != nil {
+			if h, ok := s.targets.CurrentHandle(); ok && h != 0 {
+				_ = postKeyToWindow(s.targets, vk, false)
+			}
+		}
+		focusTargetWindow(s.targets)
 		return sendVirtualKeyboard(vk, 0)
 	}
 	return nil
@@ -162,6 +167,11 @@ func (s *SendInputInjector) KeyDown(command Command) error {
 
 func (s *SendInputInjector) KeyUp(command Command) error {
 	if vk, ok := specialKeyToVK(command.Key); ok {
+		if s.targets != nil {
+			if h, ok := s.targets.CurrentHandle(); ok && h != 0 {
+				_ = postKeyToWindow(s.targets, vk, true)
+			}
+		}
 		return sendVirtualKeyboard(vk, keyeventfKeyUp)
 	}
 	return nil

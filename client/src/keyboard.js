@@ -74,19 +74,41 @@ export function attachKeyboardBridge(controls, sendControl, onStatus) {
     openKeyboard();
   });
 
-  backspaceButton?.addEventListener("click", (event) => {
+  const handleBackspace = (event) => {
     event.preventDefault();
     event.stopPropagation();
     sendKeyPress("Backspace");
+    if (inputElement.value.length > 0) {
+      inputElement.value = inputElement.value.slice(0, -1);
+      previousValue = inputElement.value;
+    }
     focusInput();
-  });
+  };
 
-  enterButton?.addEventListener("click", (event) => {
+  const handleEnter = (event) => {
     event.preventDefault();
     event.stopPropagation();
     sendKeyPress("Enter");
     focusInput();
-  });
+  };
+
+  const DEBOUNCE_MS = 200;
+  const lastInvoke = { backspace: 0, enter: 0 };
+  const wrapButtonHandler = (key, handler) => (event) => {
+    if (event.type === "touchend") {
+      event.preventDefault();
+    }
+    const now = Date.now();
+    if (now - lastInvoke[key] < DEBOUNCE_MS) return;
+    lastInvoke[key] = now;
+    handler(event);
+  };
+
+  backspaceButton?.addEventListener("click", wrapButtonHandler("backspace", handleBackspace));
+  backspaceButton?.addEventListener("touchend", wrapButtonHandler("backspace", handleBackspace), { passive: false });
+
+  enterButton?.addEventListener("click", wrapButtonHandler("enter", handleEnter));
+  enterButton?.addEventListener("touchend", wrapButtonHandler("enter", handleEnter), { passive: false });
 
   inputElement.addEventListener("beforeinput", (event) => {
     if (!keyboardActive) {
