@@ -1,5 +1,6 @@
 const LONG_PRESS_MS = 450;
 const TAP_SLOP_PX = 12;
+const SCROLL_SENSITIVITY = 0.8;
 
 function getVideoContentRect(element) {
   const rect = element.getBoundingClientRect();
@@ -37,6 +38,9 @@ function normalizePoint(event, element) {
 export function attachGestureControls(videoElement, sendControl, onStatus) {
   let longPressTimer = null;
   let dragging = false;
+  let oneFingerScrolling = false;
+  let lastScrollPoint = null;
+  let lastTapPoint = null;
   let previousTwoFingerCenter = null;
   let touchStartPoint = null;
   let longPressPoint = null;
@@ -112,6 +116,18 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
       if (!dragging && distance(touchStartPoint, currentTouchPoint) > TAP_SLOP_PX) {
         tapCancelled = true;
         cancelLongPress();
+        if (!oneFingerScrolling) {
+          oneFingerScrolling = true;
+          lastScrollPoint = currentTouchPoint;
+        }
+      }
+      if (oneFingerScrolling && lastScrollPoint) {
+        const deltaX = (currentTouchPoint.x - lastScrollPoint.x) * SCROLL_SENSITIVITY;
+        const deltaY = (lastScrollPoint.y - currentTouchPoint.y) * SCROLL_SENSITIVITY;
+        const scrollPos = lastTapPoint ?? longPressPoint;
+        sendControl({ type: "input.scroll", deltaX, deltaY, x: scrollPos.x, y: scrollPos.y });
+        lastScrollPoint = currentTouchPoint;
+        return;
       }
     }
 
@@ -132,10 +148,13 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
         y: (a.clientY + b.clientY) / 2,
       };
 
+      const scrollPos = lastTapPoint ?? { x: 0.5, y: 0.5 };
       sendControl({
         type: "input.scroll",
         deltaX: currentCenter.x - previousTwoFingerCenter.x,
         deltaY: currentCenter.y - previousTwoFingerCenter.y,
+        x: scrollPos.x,
+        y: scrollPos.y,
       });
       previousTwoFingerCenter = currentCenter;
     }
@@ -152,7 +171,8 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
         x: point.x,
         y: point.y,
       });
-    } else if (!tapCancelled && event.changedTouches.length === 1) {
+    } else if (!tapCancelled && !oneFingerScrolling && event.changedTouches.length === 1) {
+      lastTapPoint = point;
       sendControl({
         type: "input.tap",
         button: "left",
@@ -162,6 +182,8 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
     }
 
     dragging = false;
+    oneFingerScrolling = false;
+    lastScrollPoint = null;
     previousTwoFingerCenter = null;
     touchStartPoint = null;
     longPressPoint = null;
@@ -171,6 +193,8 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
 
   videoElement.addEventListener("touchcancel", () => {
     dragging = false;
+    oneFingerScrolling = false;
+    lastScrollPoint = null;
     previousTwoFingerCenter = null;
     touchStartPoint = null;
     longPressPoint = null;

@@ -128,10 +128,11 @@ func (s *SendInputInjector) MouseUp(button string, x, y float64) error {
 	return sendMouse(buttonToFlag(button, false), 0)
 }
 
-func (s *SendInputInjector) Scroll(_, deltaY float64) error {
+func (s *SendInputInjector) Scroll(_, deltaY, x, y float64) error {
 	if s.targets != nil {
 		if handle, ok := s.targets.CurrentHandle(); ok && handle != 0 {
-			return postMouseWheel(s.targets, int32(-deltaY*120))
+			screenX, screenY := normalizePoint(x, y, s.targets)
+			return postMouseWheel(s.targets, int32(-deltaY*120), screenX, screenY)
 		}
 	}
 	return sendMouse(mouseeventfWheel, uint32(int32(-deltaY*120)))

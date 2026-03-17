@@ -139,7 +139,7 @@ func postKeyToWindow(provider TargetProvider, vk uint16, keyUp bool) error {
 	return nil
 }
 
-func postMouseWheel(provider TargetProvider, delta int32) error {
+func postMouseWheel(provider TargetProvider, delta int32, screenX, screenY int32) error {
 	if provider == nil {
 		return nil
 	}
@@ -149,14 +149,27 @@ func postMouseWheel(provider TargetProvider, delta int32) error {
 		return nil
 	}
 
-	messageParam := uintptr(uint32(uint16(delta)) << 16)
-	result, _, err := procPostMessageW.Call(
+	focusTargetWindow(provider)
+
+	if screenX == 0 && screenY == 0 {
+		clientRect, ok := currentClientScreenRect(provider)
+		if !ok {
+			return nil
+		}
+		screenX = (clientRect.Left + clientRect.Right) / 2
+		screenY = (clientRect.Top + clientRect.Bottom) / 2
+	}
+
+	lParam := uintptr(uint32(uint16(screenX)) | uint32(int16(screenY))<<16)
+	wParam := uintptr(uint32(int16(delta)) << 16)
+
+	_, _, err := procSendMessageW.Call(
 		uintptr(handle),
 		uintptr(wmMouseWheel),
-		messageParam,
-		0,
+		wParam,
+		lParam,
 	)
-	if result == 0 && err != syscall.Errno(0) {
+	if err != syscall.Errno(0) {
 		return err
 	}
 

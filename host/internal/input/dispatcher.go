@@ -3,6 +3,7 @@ package input
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 )
 
 type Injector interface {
@@ -10,7 +11,7 @@ type Injector interface {
 	Tap(button string, x, y float64) error
 	MouseDown(button string, x, y float64) error
 	MouseUp(button string, x, y float64) error
-	Scroll(deltaX, deltaY float64) error
+	Scroll(deltaX, deltaY, x, y float64) error
 	ResizeViewport(command Command) error
 	KeyDown(command Command) error
 	KeyUp(command Command) error
@@ -31,6 +32,8 @@ func (d *Dispatcher) Dispatch(raw []byte) error {
 		return err
 	}
 
+	log.Printf("input: %s", command.Type)
+
 	switch command.Type {
 	case "input.tap":
 		return d.injector.Tap(command.Button, command.X, command.Y)
@@ -41,7 +44,7 @@ func (d *Dispatcher) Dispatch(raw []byte) error {
 	case "input.mouseUp":
 		return d.injector.MouseUp(command.Button, command.X, command.Y)
 	case "input.scroll":
-		return d.injector.Scroll(command.DeltaX, command.DeltaY)
+		return d.injector.Scroll(command.DeltaX, command.DeltaY, command.X, command.Y)
 	case "viewport.resize":
 		return d.injector.ResizeViewport(command)
 	case "input.keyDown":
