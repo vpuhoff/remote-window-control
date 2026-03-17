@@ -161,3 +161,54 @@ body {
 #hidden-text-input::placeholder {
   color: #94a3b8;
 }
+
+#install-banner {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+  left: 12px;
+  right: 12px;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.install-banner-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.install-banner-text {
+  color: #e2e8f0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.install-banner-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.install-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.install-btn-primary {
+  background: #38bdf8;
+  color: #0f172a;
+}
+
+.install-btn-secondary {
+  background: rgba(51, 65, 85, 0.8);
+  color: #e2e8f0;
+}

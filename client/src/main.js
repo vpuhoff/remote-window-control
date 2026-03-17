@@ -1,7 +1,12 @@
 import "./styles.css";
 
 import { bootstrapAuth, clearToken } from "./auth.js";
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js").catch(() => {});
+}
 import { attachGestureControls } from "./gestures.js";
+import { attachInstallPrompt } from "./install-prompt.js";
 import { attachKeyboardBridge } from "./keyboard.js";
 import { attachViewportSync } from "./viewport.js";
 import { createRemoteConnection } from "./webrtc.js";
@@ -28,7 +33,7 @@ function attachTopBarControls(onFullscreenChange) {
         await document.documentElement.requestFullscreen();
       }
       onFullscreenChange?.();
-      window.setTimeout(() => onFullscreenChange?.(), 150);
+      [100, 300, 600].forEach((ms) => window.setTimeout(() => onFullscreenChange?.(), ms));
     } catch {
       setStatus("Не удалось переключить полный экран");
     }
@@ -66,6 +71,7 @@ async function main() {
       targetElement: videoStageElement,
     });
     attachTopBarControls(viewportSync.triggerFullscreenSync);
+    attachInstallPrompt(document.body, setStatus);
     setStatus("Управление готово");
   } catch (error) {
     clearToken();

@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/generate-icons.js && vite build",
     "preview": "vite preview"
   },
   "keywords": [
@@ -17,6 +17,7 @@
   "license": "MIT",
   "description": "Mobile PWA client for remote window control over Tailscale.",
   "devDependencies": {
+    "sharp": "^0.34.5",
     "vite": "^5.4.21"
   }
 }
