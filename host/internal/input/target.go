@@ -2,12 +2,14 @@ package input
 
 import (
 	"errors"
+	"math"
 	"syscall"
 	"unsafe"
 )
 
 const (
-	wmMouseWheel = 0x020A
+	wmMouseWheel             = 0x020A
+	monitorDefaultToNearest = 0x00000002
 )
 
 var ErrTargetWindowNotSelected = errors.New("target window not selected")
@@ -28,10 +30,19 @@ type point struct {
 	Y int32
 }
 
+type monitorInfo struct {
+	CbSize    uint32
+	RcMonitor rect
+	RcWork    rect
+	DwFlags   uint32
+}
+
 var (
 	procGetWindowRect       = user32.NewProc("GetWindowRect")
 	procGetClientRect       = user32.NewProc("GetClientRect")
 	procClientToScreen      = user32.NewProc("ClientToScreen")
+	procMonitorFromWindow   = user32.NewProc("MonitorFromWindow")
+	procGetMonitorInfoW     = user32.NewProc("GetMonitorInfoW")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 	procPostMessageW        = user32.NewProc("PostMessageW")
 	procMoveWindow          = user32.NewProc("MoveWindow")
@@ -116,13 +127,27 @@ func resizeTargetWindow(provider TargetProvider, desiredClientWidth, desiredClie
 	frameWidth := (windowRect.Right - windowRect.Left) - (clientRect.Right - clientRect.Left)
 	frameHeight := (windowRect.Bottom - windowRect.Top) - (clientRect.Bottom - clientRect.Top)
 
+	workArea, ok := currentMonitorWorkArea(handle)
+	if ok {
+		maxClientWidth := int(workArea.Right-workArea.Left) - int(frameWidth)
+		maxClientHeight := int(workArea.Bottom-workArea.Top) - int(frameHeight)
+		desiredClientWidth, desiredClientHeight = fitClientSize(desiredClientWidth, desiredClientHeight, maxClientWidth, maxClientHeight)
+	}
+
 	newWidth := clampDimension(desiredClientWidth + int(frameWidth))
 	newHeight := clampDimension(desiredClientHeight + int(frameHeight))
+	newLeft := windowRect.Left
+	newTop := windowRect.Top
+
+	if ok {
+		newLeft = clampInt32(newLeft, workArea.Left, workArea.Right-int32(newWidth))
+		newTop = clampInt32(newTop, workArea.Top, workArea.Bottom-int32(newHeight))
+	}
 
 	result, _, err := procMoveWindow.Call(
 		uintptr(handle),
-		uintptr(windowRect.Left),
-		uintptr(windowRect.Top),
+		uintptr(newLeft),
+		uintptr(newTop),
 		uintptr(newWidth),
 		uintptr(newHeight),
 		1,
@@ -132,6 +157,21 @@ func resizeTargetWindow(provider TargetProvider, desiredClientWidth, desiredClie
 	}
 
 	return nil
+}
+
+func currentMonitorWorkArea(handle uint64) (rect, bool) {
+	monitor, _, _ := procMonitorFromWindow.Call(uintptr(handle), monitorDefaultToNearest)
+	if monitor == 0 {
+		return rect{}, false
+	}
+
+	info := monitorInfo{CbSize: uint32(unsafe.Sizeof(monitorInfo{}))}
+	result, _, _ := procGetMonitorInfoW.Call(monitor, uintptr(unsafe.Pointer(&info)))
+	if result == 0 {
+		return rect{}, false
+	}
+
+	return info.RcWork, true
 }
 
 func currentClientRect(handle uint64) (rect, bool) {
@@ -179,6 +219,42 @@ func clampDimension(value int) int {
 	}
 	if value > 4096 {
 		return 4096
+	}
+	return value
+}
+
+func fitClientSize(desiredWidth, desiredHeight, maxWidth, maxHeight int) (int, int) {
+	desiredWidth = clampDimension(desiredWidth)
+	desiredHeight = clampDimension(desiredHeight)
+	if maxWidth < 1 {
+		maxWidth = 1
+	}
+	if maxHeight < 1 {
+		maxHeight = 1
+	}
+
+	scaleX := float64(maxWidth) / float64(desiredWidth)
+	scaleY := float64(maxHeight) / float64(desiredHeight)
+	scale := math.Min(1, math.Min(scaleX, scaleY))
+	if scale <= 0 || math.IsNaN(scale) || math.IsInf(scale, 0) {
+		return desiredWidth, desiredHeight
+	}
+
+	width := int(math.Round(float64(desiredWidth) * scale))
+	height := int(math.Round(float64(desiredHeight) * scale))
+
+	return clampDimension(width), clampDimension(height)
+}
+
+func clampInt32(value, minValue, maxValue int32) int32 {
+	if maxValue < minValue {
+		return minValue
+	}
+	if value < minValue {
+		return minValue
+	}
+	if value > maxValue {
+		return maxValue
 	}
 	return value
 }
