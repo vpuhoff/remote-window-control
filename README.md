@@ -1,30 +1,32 @@
 # Share App
 
-Windows-host + mobile web client for remote control of a selected application window over Tailscale.
+Windows host + mobile web client for remote control of a selected application window via Tailscale.
 
 ## Components
 
-- `host/`: Go service that serves the client, handles auth, signaling, WebRTC, and input injection.
-- `client/`: Vite/Vanilla JS mobile web client.
-- `native-capture/`: .NET capture layer and `CaptureProbe` helper built on `Windows.Graphics.Capture`.
+- `host/` — Go service: client serving, auth, signaling, WebRTC, input injection
+- `client/` — Vite/Vanilla JS PWA client for mobile
+- `native-capture/` — .NET capture layer on `Windows.Graphics.Capture`
 
-## Current Architecture
+## Architecture
 
-Video path:
+**Video:**
+1. Host creates WebRTC peer
+2. Starts long-lived `CaptureProbe` process
+3. `CaptureProbe` holds `WgcCaptureService` session for selected `HWND`
+4. Raw BGRA frames → host → ffmpeg (VP8/IVF) → Pion WebRTC track
 
-1. `host` starts a WebRTC peer.
-2. `host` opens a long-lived `CaptureProbe` process.
-3. `CaptureProbe` keeps a long-lived `WgcCaptureService` session for the selected `HWND`.
-4. Raw `BGRA` frames stream to `host`.
-5. `host` feeds frames into one long-lived `ffmpeg` process.
-6. `ffmpeg` encodes `VP8/IVF`.
-7. `host` writes encoded samples into the Pion WebRTC track.
+**Input:**
+1. Client sends touch/keyboard via WebRTC data channel or WebSocket
+2. `host/internal/input` maps normalized coordinates to window area
+3. Win32: `SendInput`, `PostMessage` (WM_MOUSEWHEEL), `SetForegroundWindow`
 
-Input path:
-
-1. Mobile client sends touch/keyboard commands over WebRTC data channel or WebSocket fallback.
-2. `host/internal/input` converts normalized coordinates into the selected window client area.
-3. Win32 input is injected with `SendInput` and a few direct window messages.
+**Gestures (client):**
+- Tap — click
+- Long press — right click + drag
+- Swipe up — scroll down, swipe down — scroll up (single finger)
+- Two fingers — scroll by movement
+- Scroll is sent to coordinates of last tap
 
 ## Prerequisites
 
@@ -94,24 +96,15 @@ Open from phone:
 
 - `https://bigbro.tail38c17.ts.net:8443/?secret=test-secret`
 
-## Selecting The Target Window
+## Window Selection
 
-You must select a target window before control/video works.
+When opening a link with `?secret=...` the client shows a "Select application" screen with a list of windows. After selection, streaming and control begin.
 
-Options:
+**Alternatives (for debugging):**
+- Host UI: `http://127.0.0.1:8095/host-ui`
+- API: `POST /api/target-window` with `{"handle": N}`, list — `GET /api/windows`
 
-- local host UI: `http://127.0.0.1:8095/host-ui`
-- API:
-
-```bash
-curl -X POST -H "Content-Type: application/json" -d "{\"handle\":657830}" "http://127.0.0.1:8095/api/target-window"
-```
-
-List windows:
-
-```bash
-curl "http://127.0.0.1:8095/api/windows"
-```
+**Auth:** secret is stored in localStorage; on host restart the token is refreshed automatically (retry on 401).
 
 ## Useful Debug Commands
 
@@ -127,9 +120,13 @@ Verify host snapshot:
 curl -H "Authorization: Bearer <token>" "http://127.0.0.1:8095/api/snapshot?out=d:/Dev/share-app/host-check.png"
 ```
 
-## Important Notes
+## PWA
 
-- Root `.gitignore` intentionally ignores:
+The client is a PWA: it can be installed on Android (Chrome: menu → "Install app"). Manifest and Service Worker are included.
+
+## Important
+
+- `.gitignore` excludes:
   - `*.crt`
   - `*.key`
   - `bin/`, `obj/`
@@ -137,4 +134,4 @@ curl -H "Authorization: Bearer <token>" "http://127.0.0.1:8095/api/snapshot?out=
   - `client/dist/`
 - `CaptureProbe` is a required runtime dependency for streaming.
 - `host/internal/nativecapture/bridge.go` resolves `CaptureProbe.exe` from the repo build output.
-- The selected target window is currently in-memory only and is lost when the host restarts.
+- Selected window is kept in host memory and reset on restart (client automatically gets a new token).

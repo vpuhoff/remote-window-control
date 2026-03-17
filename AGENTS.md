@@ -2,11 +2,11 @@
 
 ## Project Overview
 
-This repo is a Windows-only remote window streaming prototype.
+Windows-only remote window streaming: host + mobile PWA client over Tailscale.
 
-- `host/`: Go server, signaling, WebRTC, input injection
-- `client/`: Vite mobile web client
-- `native-capture/`: .NET `Windows.Graphics.Capture` helper and `CaptureProbe`
+- `host/`: Go server, auth, signaling, WebRTC, input injection
+- `client/`: Vite mobile PWA client (window picker, gestures, keyboard)
+- `native-capture/`: .NET `Windows.Graphics.Capture` + `CaptureProbe`
 
 ## Required Build Order
 
@@ -85,7 +85,7 @@ tailscale cert bigbro.tail38c17.ts.net
   - `client/src/**`: rebuild client
   - `native-capture/**`: rebuild `CaptureProbe`
   - `host/**`: rebuild host
-- If streaming breaks, check these files first:
+- Key files when debugging issues:
   - `host/internal/webrtc/windowstream.go`
   - `host/internal/nativecapture/bridge.go`
   - `native-capture/tests/CaptureProbe/Program.cs`
@@ -104,12 +104,17 @@ Do not revert this back to per-frame `CaptureProbe` or per-frame `ffmpeg`.
 
 ## Input Notes
 
-- Touch input is normalized on the client in `client/src/gestures.js`
-- Host-side coordinate mapping is applied against the selected window client area in:
-  - `host/internal/input/sendinput.go`
-  - `host/internal/input/target.go`
+- Gestures: `client/src/gestures.js` — tap, long press (right click), single-finger scroll, two-finger scroll
+- Scroll is sent to coordinates of last tap (`x`, `y` in `input.scroll`)
+- Host: `sendinput.go`, `target.go` — coordinate normalization, `postMouseWheel` with focus and SendMessage
+- Auth: `client/src/auth.js` — secret in localStorage, `refreshToken` on 401; `api.js` — retry on 401
 
-If taps or clicks are off, inspect client-area coordinate transforms before changing gesture semantics.
+## Client Flow
+
+1. `bootstrapAuth` — exchange secret for token, store in localStorage
+2. `showWindowSelect` — `fetchWindows`, window cards
+3. Click on window → `setTargetWindow` → `startRemoteControl` (WebRTC)
+4. On 401 API retry with `refreshToken`
 
 ## Useful Smoke Tests
 
