@@ -31,6 +31,11 @@ jobs:
         with:
           dotnet-version: "6.0.x"
 
+      - name: Install Windows 10 SDK (19041)
+        uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
+        with:
+          sdk-version: "19041"
+
       - name: Build native capture
         run: dotnet build native-capture/tests/CaptureProbe/CaptureProbe.csproj
 
