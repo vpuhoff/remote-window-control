@@ -1,6 +1,6 @@
 import "./styles.css";
 
-import { bootstrapAuth, clearToken } from "./auth.js";
+import { bootstrapAuth, clearToken, getStoredToken } from "./auth.js";
 import { fetchWindows, setTargetWindow } from "./api.js";
 
 if ("serviceWorker" in navigator) {
@@ -82,7 +82,7 @@ async function showWindowSelect(token) {
           await setTargetWindow(token, w.handle);
           if (selectScreen) selectScreen.hidden = true;
           if (remoteScreen) remoteScreen.hidden = false;
-          await startRemoteControl(token);
+          await startRemoteControl(getStoredToken());
         } catch (err) {
           console.error("Ошибка подключения:", err);
           if (selectScreen) selectScreen.hidden = false;
