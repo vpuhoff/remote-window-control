@@ -1,6 +1,9 @@
 .DS_Store
 Thumbs.db
 
+# Local env (secrets, paths)
+.env
+
 # Tailscale certificates and keys
 *.crt
 *.key

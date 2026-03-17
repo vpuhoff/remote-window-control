@@ -78,23 +78,23 @@ Open:
 Generate certificates first:
 
 ```bash
-tailscale cert bigbro.tail38c17.ts.net
+tailscale cert your-machine.tail12345.ts.net
 ```
 
 This writes:
 
-- `bigbro.tail38c17.ts.net.crt`
-- `bigbro.tail38c17.ts.net.key`
+- `your-machine.tail12345.ts.net.crt`
+- `your-machine.tail12345.ts.net.key`
 
 Run host from `host/`:
 
 ```bash
-SHARE_APP_ADDR=:8443 SHARE_APP_CERT_DIR="d:\Dev\share-app" SHARE_APP_TAILSCALE_DOMAIN=bigbro.tail38c17.ts.net SHARE_APP_SECRET=test-secret go run ./cmd/share-host
+SHARE_APP_ADDR=:8443 SHARE_APP_CERT_DIR="." SHARE_APP_TAILSCALE_DOMAIN=your-machine.tail12345.ts.net SHARE_APP_SECRET=test-secret go run ./cmd/share-host
 ```
 
 Open from phone:
 
-- `https://bigbro.tail38c17.ts.net:8443/?secret=test-secret`
+- `https://your-machine.tail12345.ts.net:8443/?secret=test-secret`
 
 ## Window Selection
 

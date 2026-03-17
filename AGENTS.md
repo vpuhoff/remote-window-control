@@ -60,7 +60,7 @@ Certificates are expected in repo root when using the current workflow.
 
 ```bash
 cd host
-SHARE_APP_ADDR=:8443 SHARE_APP_CERT_DIR="d:\Dev\share-app" SHARE_APP_TAILSCALE_DOMAIN=bigbro.tail38c17.ts.net SHARE_APP_SECRET=test-secret go run ./cmd/share-host
+SHARE_APP_ADDR=:8443 SHARE_APP_CERT_DIR="." SHARE_APP_TAILSCALE_DOMAIN=your-machine.tail12345.ts.net SHARE_APP_SECRET=test-secret go run ./cmd/share-host
 ```
 
 ## Runtime Assumptions
@@ -69,7 +69,7 @@ SHARE_APP_ADDR=:8443 SHARE_APP_CERT_DIR="d:\Dev\share-app" SHARE_APP_TAILSCALE_D
 - Tailscale certificates are generated with:
 
 ```bash
-tailscale cert bigbro.tail38c17.ts.net
+tailscale cert your-machine.tail12345.ts.net
 ```
 
 - `CaptureProbe` is resolved from:
