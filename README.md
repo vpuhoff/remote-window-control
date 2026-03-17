@@ -2,6 +2,34 @@
 
 Windows host + mobile web client for remote control of a selected application window via Tailscale.
 
+## Purpose
+
+Share App lets you control a **single window** on your Windows PC from your phone over Tailscale. Use cases:
+
+- Control one app (browser, IDE, game) from your phone without exposing the full desktop
+- Quick access to a window on your home PC from anywhere (within your Tailscale network)
+- Share or present a specific window without giving access to the rest of the desktop
+
+**What makes it different:**
+- **Window-level** — streams one window, not the full screen
+- **PWA** — install from browser, no app store
+- **Tailscale-native** — no port forwarding, private network only
+
+## Alternatives
+
+| Solution | Scope | Difference from Share App |
+|----------|-------|---------------------------|
+| RDP / Microsoft Remote Desktop | Full desktop | Entire screen; requires RDP client |
+| Chrome Remote Desktop | Full desktop | Entire screen; Google dependency |
+| TeamViewer / AnyDesk | Full desktop | Entire screen; paid tiers; public relay |
+| Parsec | Full desktop (gaming) | Optimized for games; full screen |
+| RustDesk | Full desktop | Open-source RDP/VNC; full screen |
+| Tailscale + RDP | Full desktop | Full screen; requires RDP client |
+| VNC (TightVNC, etc.) | Full desktop | Full screen; no built-in mobile PWA |
+| Apache Guacamole | Full desktop | RDP/VNC in browser; heavier setup |
+
+Share App fits when you need **one window** from your phone over Tailscale, without installing a dedicated client and without exposing the full desktop.
+
 ## Components
 
 - `host/` — Go service: client serving, auth, signaling, WebRTC, input injection
