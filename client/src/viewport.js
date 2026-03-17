@@ -64,20 +64,38 @@ export function attachViewportSync(sendControl, options = {}) {
     ));
   };
 
+  const onFullscreenChange = () => {
+    requestAnimationFrame(() => {
+      scheduleViewportSync();
+      scheduleOrientationSync();
+    });
+  };
+
+  const triggerFullscreenSync = () => {
+    onFullscreenChange();
+  };
+
   sendViewport();
   window.addEventListener("resize", scheduleViewportSync);
   window.addEventListener("orientationchange", scheduleOrientationSync);
   window.visualViewport?.addEventListener("resize", scheduleViewportSync);
+  document.addEventListener("fullscreenchange", onFullscreenChange);
+  document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 
-  return () => {
-    window.removeEventListener("resize", scheduleViewportSync);
-    window.removeEventListener("orientationchange", scheduleOrientationSync);
-    window.visualViewport?.removeEventListener("resize", scheduleViewportSync);
-    if (timerId) {
-      window.clearTimeout(timerId);
-    }
-    for (const timeoutId of orientationTimerIds) {
-      window.clearTimeout(timeoutId);
-    }
+  return {
+    triggerFullscreenSync,
+    cleanup() {
+      window.removeEventListener("resize", scheduleViewportSync);
+      window.removeEventListener("orientationchange", scheduleOrientationSync);
+      window.visualViewport?.removeEventListener("resize", scheduleViewportSync);
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+      if (timerId) {
+        window.clearTimeout(timerId);
+      }
+      for (const timeoutId of orientationTimerIds) {
+        window.clearTimeout(timeoutId);
+      }
+    },
   };
 }

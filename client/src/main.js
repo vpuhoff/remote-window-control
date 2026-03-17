@@ -19,15 +19,16 @@ function setStatus(message) {
   statusElement.textContent = message;
 }
 
-function attachTopBarControls() {
+function attachTopBarControls(onFullscreenChange) {
   fullscreenButton?.addEventListener("click", async () => {
     try {
       if (document.fullscreenElement) {
         await document.exitFullscreen();
-        return;
+      } else {
+        await document.documentElement.requestFullscreen();
       }
-
-      await document.documentElement.requestFullscreen();
+      onFullscreenChange?.();
+      window.setTimeout(() => onFullscreenChange?.(), 150);
     } catch {
       setStatus("Не удалось переключить полный экран");
     }
@@ -54,17 +55,17 @@ async function main() {
     });
 
     attachGestureControls(videoElement, remote.sendControl, setStatus);
-    attachTopBarControls();
     const keyboard = attachKeyboardBridge({
       buttonElement: keyboardButton,
       inputElement: hiddenInput,
       backspaceButton,
       enterButton,
     }, remote.sendControl, setStatus);
-    attachViewportSync(remote.sendControl, {
+    const viewportSync = attachViewportSync(remote.sendControl, {
       isSuspended: () => keyboard.isActive(),
       targetElement: videoStageElement,
     });
+    attachTopBarControls(viewportSync.triggerFullscreenSync);
     setStatus("Управление готово");
   } catch (error) {
     clearToken();
