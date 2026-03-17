@@ -89,6 +89,8 @@ export function attachKeyboardBridge(controls, sendControl, onStatus) {
     event.preventDefault();
     event.stopPropagation();
     sendKeyPress("Enter");
+    inputElement.value = "";
+    previousValue = "";
     focusInput();
   };
 
@@ -163,6 +165,10 @@ export function attachKeyboardBridge(controls, sendControl, onStatus) {
       shiftKey: event.shiftKey,
       metaKey: event.metaKey,
     });
+    if (event.key === "Enter") {
+      inputElement.value = "";
+      previousValue = "";
+    }
   });
 
   inputElement.addEventListener("blur", () => {
