@@ -112,16 +112,6 @@ export function attachKeyboardBridge(controls, sendControl, onStatus) {
   enterButton?.addEventListener("click", wrapButtonHandler("enter", handleEnter));
   enterButton?.addEventListener("touchend", wrapButtonHandler("enter", handleEnter), { passive: false });
 
-  inputElement.addEventListener("beforeinput", (event) => {
-    if (!keyboardActive) {
-      return;
-    }
-
-    if (event.inputType === "deleteContentBackward" && previousValue.length > 0) {
-      sendKeyPress("Backspace");
-    }
-  });
-
   inputElement.addEventListener("input", (event) => {
     const value = event.target.value;
     if (!keyboardActive) {
@@ -144,6 +134,7 @@ export function attachKeyboardBridge(controls, sendControl, onStatus) {
   });
 
   inputElement.addEventListener("keydown", (event) => {
+    if (event.key === "Backspace") return;
     sendControl({
       type: "input.keyDown",
       key: event.key,
@@ -156,6 +147,7 @@ export function attachKeyboardBridge(controls, sendControl, onStatus) {
   });
 
   inputElement.addEventListener("keyup", (event) => {
+    if (event.key === "Backspace") return;
     sendControl({
       type: "input.keyUp",
       key: event.key,
