@@ -14,6 +14,7 @@ import { createRemoteConnection } from "./webrtc.js";
 const videoElement = document.querySelector("#remote-video");
 const videoStageElement = document.querySelector("#video-stage");
 const statusElement = document.querySelector("#status-pill");
+const bitrateElement = document.querySelector("#bitrate-pill");
 const fullscreenButton = document.querySelector("#fullscreen-button");
 const keyboardButton = document.querySelector("#keyboard-button");
 const hiddenInput = document.querySelector("#hidden-text-input");
@@ -55,6 +56,12 @@ async function main() {
       onInputMessage: (payload) => {
         if (payload.type === "host.ack") {
           setStatus(payload.message);
+        }
+      },
+      onBitrate: (kbps) => {
+        if (bitrateElement) {
+          bitrateElement.textContent = `${kbps} kbps`;
+          bitrateElement.hidden = false;
         }
       },
     });

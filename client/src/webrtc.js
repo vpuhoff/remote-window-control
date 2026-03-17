@@ -1,3 +1,35 @@
+function startBitrateMonitor(peer, onBitrate) {
+  let lastBytes = null;
+  let lastTime = null;
+
+  const poll = async () => {
+    try {
+      const stats = await peer.getStats();
+      let bytes = 0;
+      stats.forEach((report) => {
+        if (report.type === "inbound-rtp" && (report.mediaType === "video" || report.kind === "video")) {
+          bytes += report.bytesReceived ?? 0;
+        }
+      });
+      const now = performance.now();
+      if (lastBytes !== null && lastTime !== null) {
+        const elapsed = (now - lastTime) / 1000;
+        if (elapsed >= 0.5) {
+          const kbps = Math.round(((bytes - lastBytes) / elapsed) * 8 / 1000);
+          onBitrate(kbps);
+        }
+      }
+      lastBytes = bytes;
+      lastTime = now;
+    } catch {
+      // ignore
+    }
+    setTimeout(poll, 1000);
+  };
+
+  poll();
+}
+
 function makeSignalingUrl(token) {
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(token)}`;
@@ -31,7 +63,7 @@ function createPlaceholderStream() {
   return canvas.captureStream(5);
 }
 
-export async function createRemoteConnection({ token, videoElement, onStatus, onInputMessage }) {
+export async function createRemoteConnection({ token, videoElement, onStatus, onInputMessage, onBitrate }) {
   const signaling = new WebSocket(makeSignalingUrl(token));
   const peer = new RTCPeerConnection();
   let placeholderActivated = false;
@@ -81,6 +113,9 @@ export async function createRemoteConnection({ token, videoElement, onStatus, on
     if (stream) {
       videoElement.srcObject = stream;
       onStatus("Видео подключено");
+      if (onBitrate) {
+        startBitrateMonitor(peer, onBitrate);
+      }
     }
   };
 

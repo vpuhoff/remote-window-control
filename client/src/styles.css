@@ -74,6 +74,20 @@ body {
   white-space: nowrap;
 }
 
+#bitrate-pill {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(56, 189, 248, 0.95);
+  background: rgba(56, 189, 248, 0.15);
+  border-radius: 6px;
+}
+
+#bitrate-pill[hidden] {
+  display: none;
+}
+
 #top-bar-actions {
   display: flex;
   align-items: center;
