@@ -223,7 +223,7 @@ func normalizeToScreen(x, y float64) (int32, int32) {
 }
 
 func normalizePoint(x, y float64, targets TargetProvider) (int32, int32) {
-	if rect, ok := currentWindowRect(targets); ok {
+	if rect, ok := currentClientScreenRect(targets); ok {
 		width := rect.Right - rect.Left
 		height := rect.Bottom - rect.Top
 		return rect.Left + int32(float64(width)*clampUnit(x)), rect.Top + int32(float64(height)*clampUnit(y))

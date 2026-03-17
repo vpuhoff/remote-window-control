@@ -23,9 +23,15 @@ type rect struct {
 	Bottom int32
 }
 
+type point struct {
+	X int32
+	Y int32
+}
+
 var (
 	procGetWindowRect       = user32.NewProc("GetWindowRect")
 	procGetClientRect       = user32.NewProc("GetClientRect")
+	procClientToScreen      = user32.NewProc("ClientToScreen")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 	procPostMessageW        = user32.NewProc("PostMessageW")
 	procMoveWindow          = user32.NewProc("MoveWindow")
@@ -136,6 +142,35 @@ func currentClientRect(handle uint64) (rect, bool) {
 	}
 
 	return out, true
+}
+
+func currentClientScreenRect(provider TargetProvider) (rect, bool) {
+	if provider == nil {
+		return rect{}, false
+	}
+
+	handle, ok := provider.CurrentHandle()
+	if !ok || handle == 0 {
+		return rect{}, false
+	}
+
+	clientRect, ok := currentClientRect(handle)
+	if !ok {
+		return rect{}, false
+	}
+
+	clientOrigin := point{}
+	result, _, _ := procClientToScreen.Call(uintptr(handle), uintptr(unsafe.Pointer(&clientOrigin)))
+	if result == 0 {
+		return rect{}, false
+	}
+
+	return rect{
+		Left:   clientOrigin.X,
+		Top:    clientOrigin.Y,
+		Right:  clientOrigin.X + (clientRect.Right - clientRect.Left),
+		Bottom: clientOrigin.Y + (clientRect.Bottom - clientRect.Top),
+	}, true
 }
 
 func clampDimension(value int) int {

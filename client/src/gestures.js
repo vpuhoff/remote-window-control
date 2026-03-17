@@ -1,7 +1,29 @@
 const LONG_PRESS_MS = 450;
+const TAP_SLOP_PX = 12;
+
+function getVideoContentRect(element) {
+  const rect = element.getBoundingClientRect();
+  const sourceWidth = element.videoWidth;
+  const sourceHeight = element.videoHeight;
+
+  if (!sourceWidth || !sourceHeight || !rect.width || !rect.height) {
+    return rect;
+  }
+
+  const scale = Math.min(rect.width / sourceWidth, rect.height / sourceHeight);
+  const contentWidth = sourceWidth * scale;
+  const contentHeight = sourceHeight * scale;
+
+  return {
+    left: rect.left + (rect.width - contentWidth) / 2,
+    top: rect.top + (rect.height - contentHeight) / 2,
+    width: contentWidth,
+    height: contentHeight,
+  };
+}
 
 function normalizePoint(event, element) {
-  const rect = element.getBoundingClientRect();
+  const rect = getVideoContentRect(element);
   const touch = event.touches[0] ?? event.changedTouches[0];
   const x = (touch.clientX - rect.left) / rect.width;
   const y = (touch.clientY - rect.top) / rect.height;
@@ -16,6 +38,26 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
   let longPressTimer = null;
   let dragging = false;
   let previousTwoFingerCenter = null;
+  let touchStartPoint = null;
+  let longPressPoint = null;
+  let tapCancelled = false;
+
+  const distance = (a, b) => {
+    if (!a || !b) {
+      return 0;
+    }
+
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
+  const firstTouchClientPoint = (event) => {
+    const touch = event.touches[0] ?? event.changedTouches[0];
+    if (!touch) {
+      return null;
+    }
+
+    return { x: touch.clientX, y: touch.clientY };
+  };
 
   const cancelLongPress = () => {
     if (longPressTimer) {
@@ -29,14 +71,21 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
 
     if (event.touches.length === 1) {
       const point = normalizePoint(event, videoElement);
+      touchStartPoint = firstTouchClientPoint(event);
+      longPressPoint = point;
+      tapCancelled = false;
       dragging = false;
       longPressTimer = window.setTimeout(() => {
+        if (tapCancelled) {
+          return;
+        }
+
         dragging = true;
         sendControl({
           type: "input.mouseDown",
           button: "right",
-          x: point.x,
-          y: point.y,
+          x: longPressPoint.x,
+          y: longPressPoint.y,
         });
         onStatus("Long press активирован");
       }, LONG_PRESS_MS);
@@ -45,6 +94,7 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
 
     if (event.touches.length === 2) {
       cancelLongPress();
+      tapCancelled = true;
       const [a, b] = event.touches;
       previousTwoFingerCenter = {
         x: (a.clientX + b.clientX) / 2,
@@ -55,6 +105,15 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
 
   videoElement.addEventListener("touchmove", (event) => {
     event.preventDefault();
+
+    if (event.touches.length === 1) {
+      longPressPoint = normalizePoint(event, videoElement);
+      const currentTouchPoint = firstTouchClientPoint(event);
+      if (!dragging && distance(touchStartPoint, currentTouchPoint) > TAP_SLOP_PX) {
+        tapCancelled = true;
+        cancelLongPress();
+      }
+    }
 
     if (event.touches.length === 1 && dragging) {
       const point = normalizePoint(event, videoElement);
@@ -93,7 +152,7 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
         x: point.x,
         y: point.y,
       });
-    } else if (event.changedTouches.length === 1) {
+    } else if (!tapCancelled && event.changedTouches.length === 1) {
       sendControl({
         type: "input.tap",
         button: "left",
@@ -104,12 +163,18 @@ export function attachGestureControls(videoElement, sendControl, onStatus) {
 
     dragging = false;
     previousTwoFingerCenter = null;
+    touchStartPoint = null;
+    longPressPoint = null;
+    tapCancelled = false;
     cancelLongPress();
   }, { passive: false });
 
   videoElement.addEventListener("touchcancel", () => {
     dragging = false;
     previousTwoFingerCenter = null;
+    touchStartPoint = null;
+    longPressPoint = null;
+    tapCancelled = false;
     cancelLongPress();
   });
 }
