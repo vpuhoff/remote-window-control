@@ -10,24 +10,46 @@ import (
 type Config struct {
 	ListenAddr string
 	ClientDir  string
+	BaseDir    string
 	Secret     string
 	CertDir    string
 	DomainName string
 }
 
 func Load() Config {
-	exeDir, err := os.Getwd()
-	if err != nil {
-		exeDir = "."
-	}
+	baseDir := resolveBaseDir()
+	clientDir := resolveClientDir(baseDir)
 
 	return Config{
 		ListenAddr: envOrDefault("SHARE_APP_ADDR", ":8443"),
-		ClientDir:  envOrDefault("SHARE_APP_CLIENT_DIR", filepath.Clean(filepath.Join(exeDir, "..", "client", "dist"))),
+		ClientDir:  envOrDefault("SHARE_APP_CLIENT_DIR", clientDir),
+		BaseDir:    baseDir,
 		Secret:     envOrDefault("SHARE_APP_SECRET", randomHex(24)),
 		CertDir:    envOrDefault("SHARE_APP_CERT_DIR", defaultCertDir()),
 		DomainName: os.Getenv("SHARE_APP_TAILSCALE_DOMAIN"),
 	}
+}
+
+func resolveBaseDir() string {
+	if exePath, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exePath)
+		webPath := filepath.Join(exeDir, "web")
+		if _, err := os.Stat(webPath); err == nil {
+			return exeDir
+		}
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		return filepath.Clean(filepath.Join(cwd, ".."))
+	}
+	return "."
+}
+
+func resolveClientDir(baseDir string) string {
+	webPath := filepath.Join(baseDir, "web")
+	if _, err := os.Stat(webPath); err == nil {
+		return webPath
+	}
+	return filepath.Clean(filepath.Join(baseDir, "client", "dist"))
 }
 
 func envOrDefault(key, fallback string) string {

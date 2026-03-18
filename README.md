@@ -134,6 +134,21 @@ When opening a link with `?secret=...` the client shows a "Select application" s
 
 **Auth:** secret is stored in localStorage; on host restart the token is refreshed automatically (retry on 401).
 
+## Release / Distro
+
+Pre-built Windows distros are in [Releases](https://github.com/vpuhoff/remote-window-control/releases). Structure:
+
+```
+share-app-vX.Y.Z/
+  share-host.exe
+  CaptureProbe/
+    CaptureProbe.exe, *.dll
+  web/
+    index.html, assets/, manifest, sw.js
+```
+
+Run from the extracted folder: `.\share-host.exe` (or double-click). Set env vars or use `.env` for `SHARE_APP_SECRET`, `SHARE_APP_TAILSCALE_DOMAIN`, etc.
+
 ## Useful Debug Commands
 
 Verify native capture:

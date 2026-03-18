@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -30,8 +29,7 @@ func New(cfg config.Config) *App {
 
 func (a *App) Run() error {
 	sessions := auth.NewStore(a.cfg.Secret)
-	baseDir, _ := os.Getwd()
-	captureBridge := nativecapture.NewBridge(filepath.Clean(filepath.Join(baseDir, "..")))
+	captureBridge := nativecapture.NewBridge(a.cfg.BaseDir)
 	targets := targetwindow.NewManager(captureBridge)
 	dispatcher := input.NewDispatcher(input.NewSendInputInjector(targets))
 	signalingHub := signaling.NewHub(sessions, dispatcher, captureBridge, targets)

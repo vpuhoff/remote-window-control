@@ -50,6 +50,7 @@ func NewBridge(baseDir string) *Bridge {
 
 func resolveProbePath(baseDir string) string {
 	candidates := []string{
+		filepath.Join(baseDir, "CaptureProbe", "CaptureProbe.exe"),
 		filepath.Join(baseDir, "native-capture", "tests", "CaptureProbe", "bin", "Debug", "net6.0-windows10.0.19041.0", "CaptureProbe.exe"),
 		filepath.Join(baseDir, "native-capture", "tests", "CaptureProbe", "bin", "Release", "net6.0-windows10.0.19041.0", "CaptureProbe.exe"),
 		filepath.Join(baseDir, "native-capture", "tests", "CaptureProbe", "bin", "Debug", "net6.0-windows", "CaptureProbe.exe"),
