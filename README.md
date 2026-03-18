@@ -44,6 +44,14 @@ Share App fits when you need **one window** from your phone over Tailscale, with
 3. `CaptureProbe` holds `WgcCaptureService` session for selected `HWND`
 4. Raw BGRA frames → host → ffmpeg (VP8/IVF) → Pion WebRTC track
 
+## Known Limitations
+
+### Virtual desktops (Windows)
+
+Capturing a window via `Windows.Graphics.Capture` may **stop producing new frames** when the target window is moved to a **non-active virtual desktop** (even though the process is still running). This is a Windows/DWM/WGC behavior: if the window is not being composed on the active desktop, there may be nothing new to capture.
+
+**Workaround (partial):** if at least a small part of the window remains **visible on the active desktop** (even ~1% — e.g. keep a corner peeking out from under other windows), DWM continues compositing it and capture usually keeps updating while the window is mostly occluded.
+
 **Input:**
 1. Client sends touch/keyboard via WebRTC data channel or WebSocket
 2. `host/internal/input` maps normalized coordinates to window area
