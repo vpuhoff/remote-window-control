@@ -4,7 +4,6 @@ import (
 	"errors"
 	"math"
 	"syscall"
-	"time"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -13,11 +12,21 @@ const (
 	wmKeyDown                = 0x0100
 	wmKeyUp                  = 0x0101
 	wmChar                   = 0x0102
+	wmMouseMove              = 0x0200
+	wmLButtonDown            = 0x0201
+	wmLButtonUp              = 0x0202
+	wmRButtonDown            = 0x0204
+	wmRButtonUp              = 0x0205
 	wmMouseWheel             = 0x020A
 	monitorDefaultToNearest = 0x00000002
+
+	mkLButton = 0x0001
+	mkRButton = 0x0002
 )
 
 var ErrTargetWindowNotSelected = errors.New("target window not selected")
+
+var user32 = syscall.NewLazyDLL("user32.dll")
 
 type TargetProvider interface {
 	CurrentHandle() (uint64, bool)
@@ -49,17 +58,8 @@ var (
 	procMonitorFromWindow     = user32.NewProc("MonitorFromWindow")
 	procGetMonitorInfoW       = user32.NewProc("GetMonitorInfoW")
 	procSendMessageW          = user32.NewProc("SendMessageW")
-	procSetForegroundWindow   = user32.NewProc("SetForegroundWindow")
 	procPostMessageW          = user32.NewProc("PostMessageW")
 	procMoveWindow            = user32.NewProc("MoveWindow")
-	procGetWindowThreadProcID = user32.NewProc("GetWindowThreadProcessId")
-	procGetForegroundWindow   = user32.NewProc("GetForegroundWindow")
-	procAttachThreadInput     = user32.NewProc("AttachThreadInput")
-)
-
-var (
-	kernel32                 = syscall.NewLazyDLL("kernel32.dll")
-	procGetCurrentThreadID   = kernel32.NewProc("GetCurrentThreadId")
 )
 
 func currentWindowRect(provider TargetProvider) (rect, bool) {
@@ -79,34 +79,6 @@ func currentWindowRect(provider TargetProvider) (rect, bool) {
 	}
 
 	return out, true
-}
-
-func focusTargetWindow(provider TargetProvider) {
-	if provider == nil {
-		return
-	}
-
-	handle, ok := provider.CurrentHandle()
-	if !ok || handle == 0 {
-		return
-	}
-
-	hTarget := uintptr(handle)
-	fg, _, _ := procGetForegroundWindow.Call()
-	if fg != 0 && fg != hTarget {
-		fgTid, _, _ := procGetWindowThreadProcID.Call(fg, 0)
-		ourTid, _, _ := procGetCurrentThreadID.Call()
-		if fgTid != 0 && ourTid != 0 {
-			procAttachThreadInput.Call(fgTid, ourTid, 1)
-			procSetForegroundWindow.Call(hTarget)
-			procAttachThreadInput.Call(fgTid, ourTid, 0)
-		} else {
-			procSetForegroundWindow.Call(hTarget)
-		}
-		time.Sleep(50 * time.Millisecond)
-	} else {
-		procSetForegroundWindow.Call(hTarget)
-	}
 }
 
 func postKeyToWindow(provider TargetProvider, vk uint16, keyUp bool) error {
@@ -139,7 +111,7 @@ func postKeyToWindow(provider TargetProvider, vk uint16, keyUp bool) error {
 	return nil
 }
 
-func postMouseWheel(provider TargetProvider, delta int32, screenX, screenY int32) error {
+func postMouseMove(provider TargetProvider, clientX, clientY int32) error {
 	if provider == nil {
 		return nil
 	}
@@ -149,18 +121,72 @@ func postMouseWheel(provider TargetProvider, delta int32, screenX, screenY int32
 		return nil
 	}
 
-	focusTargetWindow(provider)
-
-	if screenX == 0 && screenY == 0 {
-		clientRect, ok := currentClientScreenRect(provider)
-		if !ok {
-			return nil
-		}
-		screenX = (clientRect.Left + clientRect.Right) / 2
-		screenY = (clientRect.Top + clientRect.Bottom) / 2
+	lParam := uintptr(uint32(uint16(clientX)) | uint32(uint16(clientY))<<16)
+	_, _, err := procPostMessageW.Call(
+		uintptr(handle),
+		uintptr(wmMouseMove),
+		0,
+		lParam,
+	)
+	if err != syscall.Errno(0) {
+		return err
 	}
 
-	lParam := uintptr(uint32(uint16(screenX)) | uint32(int16(screenY))<<16)
+	return nil
+}
+
+func postMouseButton(provider TargetProvider, button string, down bool, clientX, clientY int32) error {
+	if provider == nil {
+		return nil
+	}
+
+	handle, ok := provider.CurrentHandle()
+	if !ok || handle == 0 {
+		return nil
+	}
+
+	msg := wmLButtonDown
+	wParam := uintptr(mkLButton)
+	if button == "right" {
+		msg = wmRButtonDown
+		wParam = uintptr(mkRButton)
+	}
+	if !down {
+		if button == "right" {
+			msg = wmRButtonUp
+		} else {
+			msg = wmLButtonUp
+		}
+		wParam = 0
+	}
+
+	lParam := uintptr(uint32(uint16(clientX)) | uint32(uint16(clientY))<<16)
+	_, _, err := procPostMessageW.Call(
+		uintptr(handle),
+		uintptr(msg),
+		wParam,
+		lParam,
+	)
+	if err != syscall.Errno(0) {
+		return err
+	}
+
+	return nil
+}
+
+func postMouseWheel(provider TargetProvider, delta int32, clientX, clientY int32) error {
+	if provider == nil {
+		return nil
+	}
+
+	handle, ok := provider.CurrentHandle()
+	if !ok || handle == 0 {
+		return nil
+	}
+
+	// WM_MOUSEWHEEL expects screen coordinates in lParam.
+	screenX, screenY := clientToScreen(provider, clientX, clientY)
+	lParam := uintptr(uint32(uint16(screenX)) | uint32(uint16(screenY))<<16)
 	wParam := uintptr(uint32(int16(delta)) << 16)
 
 	_, _, err := procSendMessageW.Call(
@@ -174,6 +200,13 @@ func postMouseWheel(provider TargetProvider, delta int32, screenX, screenY int32
 	}
 
 	return nil
+}
+
+func clientToScreen(provider TargetProvider, clientX, clientY int32) (int32, int32) {
+	if rect, ok := currentClientScreenRect(provider); ok {
+		return rect.Left + clientX, rect.Top + clientY
+	}
+	return clientX, clientY
 }
 
 func postText(provider TargetProvider, text string) error {
