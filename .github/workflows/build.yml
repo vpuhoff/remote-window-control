@@ -3,6 +3,8 @@ name: Build
 on:
   push:
     branches: [master, main]
+    tags:
+      - 'v*'
   pull_request:
     branches: [master, main]
 
@@ -51,7 +53,7 @@ jobs:
 
       - name: Create distro
         run: |
-          $version = "${{ github.run_number }}-${{ github.sha }}"
+          $version = if ("${{ github.ref_type }}" -eq "tag") { "${{ github.ref_name }}" } else { "${{ github.run_number }}-${{ github.sha }}" }
           $dist = "dist/share-app-$version"
           New-Item -ItemType Directory -Force -Path "$dist/host" | Out-Null
           New-Item -ItemType Directory -Force -Path "$dist/client/dist" | Out-Null
@@ -63,8 +65,18 @@ jobs:
           Compress-Archive -Path "$dist/*" -DestinationPath "dist/share-app-$version.zip"
           Get-ChildItem dist/
 
-      - name: Upload distro
+      - name: Upload artifact
+        if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v4
         with:
           name: share-app-windows
           path: dist/*.zip
+
+      - name: Create release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
