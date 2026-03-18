@@ -39,10 +39,10 @@ jobs:
       - name: Build native capture
         run: dotnet build native-capture/tests/CaptureProbe/CaptureProbe.csproj
 
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: "1.24"
+      # - name: Set up Go
+      #   uses: actions/setup-go@v5
+      #   with:
+      #     go-version: "1.24"
 
       - name: Build host
         run: |
