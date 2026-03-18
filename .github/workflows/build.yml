@@ -37,7 +37,7 @@ jobs:
       #     sdk-version: "19041"
 
       - name: Build native capture
-        run: dotnet build native-capture/tests/CaptureProbe/CaptureProbe.csproj
+        run: dotnet build native-capture/tests/CaptureProbe/CaptureProbe.csproj -c Release
 
       # - name: Set up Go
       #   uses: actions/setup-go@v5
@@ -47,4 +47,24 @@ jobs:
       - name: Build host
         run: |
           cd host
-          go build ./...
+          go build -o share-host.exe ./cmd/share-host
+
+      - name: Create distro
+        run: |
+          $version = "${{ github.run_number }}-${{ github.sha }}"
+          $dist = "dist/share-app-$version"
+          New-Item -ItemType Directory -Force -Path "$dist/host" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$dist/client/dist" | Out-Null
+          $probeDir = "$dist/native-capture/tests/CaptureProbe/bin/Release/net6.0-windows10.0.19041.0"
+          New-Item -ItemType Directory -Force -Path $probeDir | Out-Null
+          Copy-Item host/share-host.exe $dist/host/
+          Copy-Item -Recurse client/dist/* $dist/client/dist/
+          Copy-Item -Recurse native-capture/tests/CaptureProbe/bin/Release/net6.0-windows10.0.19041.0/* $probeDir/
+          Compress-Archive -Path "$dist/*" -DestinationPath "dist/share-app-$version.zip"
+          Get-ChildItem dist/
+
+      - name: Upload distro
+        uses: actions/upload-artifact@v4
+        with:
+          name: share-app-windows
+          path: dist/*.zip
