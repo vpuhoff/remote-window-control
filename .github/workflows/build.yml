@@ -26,10 +26,10 @@ jobs:
           npm ci
           npm run build
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "6.0.x"
+      # - name: Set up .NET
+      #   uses: actions/setup-dotnet@v4
+      #   with:
+      #     dotnet-version: "6.0.x"
 
       # - name: Install Windows 10 SDK (19041)
       #   uses: GuillaumeFalourd/setup-windows10-sdk-action@v1
